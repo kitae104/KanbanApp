@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { buildStoredBoard } from "../fixtures/seedBoard";
 import { card, column, openWith, titlesIn } from "./helpers";
 

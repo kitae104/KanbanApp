@@ -24,7 +24,13 @@ describe("다이얼로그 (개발 모드 StrictMode)", () => {
     const onCancel = vi.fn();
     render(
       <StrictMode>
-        <ConfirmDialog cardTitle="A" onConfirm={() => {}} onCancel={onCancel} />
+        <ConfirmDialog
+          heading="카드 삭제"
+          message="삭제할까요?"
+          confirmLabel="삭제"
+          onConfirm={() => {}}
+          onCancel={onCancel}
+        />
       </StrictMode>,
     );
     await flushCloseEvents();

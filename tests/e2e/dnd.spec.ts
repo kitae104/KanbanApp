@@ -1,6 +1,6 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { buildStoredBoard } from "../fixtures/seedBoard";
-import { card, column, drag, openWith, readStored, titlesIn, type Status } from "./helpers";
+import { card, column, drag, openWith, storedTitles, titlesIn, type Status } from "./helpers";
 
 const STATUSES: Status[] = ["TODO", "IN_PROGRESS", "DONE"];
 const DIRECTIONS = STATUSES.flatMap((from) =>
@@ -17,8 +17,8 @@ test.describe("마우스 드래그 (T-027)", () => {
       await expect(card(page, "옮길 카드")).toHaveAttribute("data-status", to);
       expect(await titlesIn(page, to)).toEqual(["대상 카드", "옮길 카드"]);
       expect(await titlesIn(page, from)).toEqual(["남는 카드"]);
-      const stored = await readStored(page);
-      expect(stored.board.columns[to]).toHaveLength(2);
+      // 서버에도 같은 순서로 저장된다.
+      await expect.poll(() => storedTitles(page, to)).toEqual(["대상 카드", "옮길 카드"]);
     });
   }
 
@@ -58,8 +58,7 @@ test.describe("마우스 드래그 (T-027)", () => {
     await drag(page, card(page, "A"), page.getByRole("heading", { name: "칸반 보드" }));
     expect(await titlesIn(page, "TODO")).toEqual(["A", "B"]);
     await expect(card(page, "A")).toHaveAttribute("data-status", "TODO");
-    const stored = await readStored(page);
-    expect(stored.board.columns.TODO).toEqual(["todo-0", "todo-1"]);
+    expect(await storedTitles(page, "TODO")).toEqual(["A", "B"]);
   });
 
   test("드래그 중 대상 컬럼을 강조한다 (FR-13)", async ({ page }) => {

@@ -132,7 +132,14 @@ export function Board() {
 
       {deletingCard && (
         <ConfirmDialog
-          cardTitle={deletingCard.title}
+          heading="카드 삭제"
+          message={
+            <>
+              &lsquo;{deletingCard.title}&rsquo; 카드를 삭제할까요? 삭제한 카드는 되돌릴 수 없습니다.
+            </>
+          }
+          confirmLabel="삭제"
+          destructive
           onConfirm={handleDelete}
           onCancel={closeConfirm}
         />

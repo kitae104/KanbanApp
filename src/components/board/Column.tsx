@@ -36,7 +36,7 @@ export function Column({
       ref={setNodeRef}
       aria-labelledby={headingId}
       data-testid={`column-${status}`}
-      className={`flex h-[calc(100dvh-7rem)] min-h-80 w-[85vw] shrink-0 snap-start flex-col rounded-xl border-t-4 bg-column sm:w-80 lg:w-auto ${
+      className={`flex h-[calc(100dvh-10rem-1px)] min-h-80 w-[85vw] shrink-0 snap-start flex-col rounded-xl border-t-4 bg-column sm:w-80 lg:w-auto ${
         styles.accent
       } ${isDropTarget ? "ring-2 ring-primary" : ""}`}
     >

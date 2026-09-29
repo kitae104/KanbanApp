@@ -1,7 +1,7 @@
 import { normalizeBoard } from "@/lib/board/operations";
 import { STORAGE_VERSION, storedBoardSchema, type StoredBoard } from "@/lib/board/schema";
 import type { BoardState } from "@/lib/board/types";
-import type { BoardRepository, LoadResult, SaveResult } from "./boardRepository";
+import type { LoadResult, LocalBoardStore, SaveResult } from "./boardRepository";
 import { migrate } from "./migrations";
 
 export const STORAGE_KEY = "kanban-app:board";
@@ -17,6 +17,7 @@ function toSaveError(error: unknown): Extract<SaveResult, { ok: false }>["error"
 }
 
 const BACKUP_PREFIX = `${STORAGE_KEY}:corrupt-`;
+export const IMPORTED_PREFIX = `${STORAGE_KEY}:imported-`;
 
 /**
  * 저장 형식이 달라 읽을 수 없는 원본을 별도 키에 남겨 둔다 (plan §4.2).
@@ -37,7 +38,7 @@ function backupCorrupt(storage: Storage, raw: string) {
 
 export function createLocalStorageBoardRepository(
   getStorage: () => Storage = () => window.localStorage,
-): BoardRepository {
+): LocalBoardStore {
   return {
     load(): LoadResult {
       let storage: Storage;
@@ -76,6 +77,18 @@ export function createLocalStorageBoardRepository(
         return { ok: true };
       } catch (error) {
         return { ok: false, error: toSaveError(error) };
+      }
+    },
+
+    archive() {
+      try {
+        const storage = getStorage();
+        const raw = storage.getItem(STORAGE_KEY);
+        if (raw === null) return;
+        storage.setItem(`${IMPORTED_PREFIX}${Date.now()}`, raw);
+        storage.removeItem(STORAGE_KEY);
+      } catch {
+        // 옮기지 못해도 다음에 다시 물을 뿐 데이터는 잃지 않는다.
       }
     },
   };

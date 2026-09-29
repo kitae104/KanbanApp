@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { buildStoredBoard } from "../fixtures/seedBoard";
 import { card, openWith, titlesIn } from "./helpers";
 
@@ -24,8 +25,10 @@ async function expectNoAxeViolations(page: Page) {
 }
 
 test.describe("키보드 조작 (T-029)", () => {
-  test("Tab으로 첫 카드에 포커스할 수 있다", async ({ page }) => {
+  test("Tab으로 헤더의 로그아웃 버튼 다음 첫 카드에 포커스할 수 있다", async ({ page }) => {
     await openWith(page, buildStoredBoard({ TODO: ["첫 카드"] }));
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("button", { name: "로그아웃" })).toBeFocused();
     await page.keyboard.press("Tab");
     await expect(card(page, "첫 카드")).toBeFocused();
   });
@@ -92,4 +95,19 @@ test.describe("접근성 검사 (T-029, NFR-6)", () => {
     await expect(page.getByRole("alertdialog")).toBeVisible();
     await expectNoAxeViolations(page);
   });
+});
+
+test.describe("로그인·가입 화면 접근성 (T-031, NFR-13)", () => {
+  test.use({ loggedIn: false });
+
+  for (const path of ["/login", "/signup"]) {
+    test(`${path}에 WCAG 2.1 AA 위반이 없다(오류 표시 상태 포함)`, async ({ page }) => {
+      await page.goto(path);
+      await expectNoAxeViolations(page);
+      await page.getByRole("button", { name: path === "/login" ? "로그인" : "가입하기" }).click();
+      await expect(page.getByLabel("이메일")).toHaveAttribute("aria-invalid", "true");
+      await expect(page.getByLabel("이메일")).toBeFocused();
+      await expectNoAxeViolations(page);
+    });
+  }
 });

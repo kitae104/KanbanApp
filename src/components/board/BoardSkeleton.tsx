@@ -11,7 +11,7 @@ export function BoardSkeleton() {
       {STATUSES.map((status) => (
         <div
           key={status}
-          className="h-[calc(100dvh-7rem)] min-h-80 w-[85vw] shrink-0 animate-pulse rounded-xl bg-column sm:w-80 lg:w-auto"
+          className="h-[calc(100dvh-10rem-1px)] min-h-80 w-[85vw] shrink-0 animate-pulse rounded-xl bg-column sm:w-80 lg:w-auto"
         />
       ))}
     </div>
