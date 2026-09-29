@@ -32,5 +32,7 @@ if (typeof window !== "undefined" && !window.matchMedia) {
 
 afterEach(() => {
   cleanup();
-  localStorage.clear();
+  // 서버 모듈 테스트는 `@vitest-environment node`로 돌아 localStorage가 없다.
+  globalThis.localStorage?.clear();
+  globalThis.sessionStorage?.clear();
 });

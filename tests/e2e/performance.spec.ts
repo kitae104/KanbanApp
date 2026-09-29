@@ -1,19 +1,19 @@
-import { expect, test } from "@playwright/test";
-import { buildLargeBoard } from "../fixtures/seedBoard";
-import { STORAGE_KEY, card, column } from "./helpers";
+import { expect, test } from "./fixtures";
+import { buildLargeBoard, buildStoredBoard } from "../fixtures/seedBoard";
+import { card, column, openWith, sameOrigin } from "./helpers";
+
+/** 서버 보드에 카드를 채운다. 측정은 그다음 페이지 이동부터 한다. */
+async function seed(page: import("@playwright/test").Page, stored: unknown) {
+  const response = await page.request.post("/api/board/import", {
+    data: stored,
+    headers: sameOrigin(page),
+  });
+  expect(response.status()).toBe(200);
+}
 
 test.describe("성능 (T-030, SC-9)", () => {
   test.beforeEach(async ({ page }) => {
-    const stored = JSON.stringify(buildLargeBoard(200));
-    await page.addInitScript(
-      ([key, value]) => {
-        if (!sessionStorage.getItem("seeded")) {
-          localStorage.setItem(key, value);
-          sessionStorage.setItem("seeded", "1");
-        }
-      },
-      [STORAGE_KEY, stored] as const,
-    );
+    await seed(page, buildLargeBoard(200));
   });
 
   test("카드 600장에서 2초 안에 보드가 보인다", async ({ page }) => {
@@ -64,5 +64,48 @@ test.describe("성능 (T-030, SC-9)", () => {
     );
     expect(ratio).toBeLessThan(0.05);
     await expect(card(page, "할 일 작업 1")).toHaveAttribute("data-status", "IN_PROGRESS");
+  });
+});
+
+test.describe("서버 저장 성능 (db-integration NFR-9, NFR-10)", () => {
+  test("카드 100장 보드가 로그인 후 1초 안에 보인다 (NFR-9)", async ({ page }) => {
+    await seed(
+      page,
+      buildStoredBoard({
+        TODO: Array.from({ length: 34 }, (_, i) => `할 일 ${i + 1}`),
+        IN_PROGRESS: Array.from({ length: 33 }, (_, i) => `진행 ${i + 1}`),
+        DONE: Array.from({ length: 33 }, (_, i) => `완료 ${i + 1}`),
+      }),
+    );
+    const started = Date.now();
+    await page.goto("/");
+    await expect(card(page, "완료 33")).toBeVisible();
+    const elapsed = Date.now() - started;
+    console.log(`[perf] 100장 서버 조회 포함 첫 표시 ${elapsed}ms`);
+    expect(elapsed).toBeLessThan(1000);
+  });
+
+  test("카드 이동 저장 API의 p95가 150ms 이하다 (NFR-10)", async ({ page }) => {
+    await openWith(page, buildStoredBoard({ TODO: ["A"], IN_PROGRESS: Array.from({ length: 30 }, (_, i) => `카드 ${i}`) }));
+    const board = await (await page.request.get("/api/board")).json();
+    const id = board.columns.TODO[0];
+    // 첫 요청은 서버 워밍업이라 뺀다.
+    await page.request.post(`/api/board/cards/${id}/move`, { data: { toStatus: "DONE", toIndex: 0 }, headers: sameOrigin(page) });
+
+    const durations: number[] = [];
+    const targets = ["IN_PROGRESS", "DONE", "TODO"] as const;
+    for (let i = 0; i < 20; i++) {
+      const started = performance.now();
+      const response = await page.request.post(`/api/board/cards/${id}/move`, {
+        data: { toStatus: targets[i % 3], toIndex: i % 5 },
+        headers: sameOrigin(page),
+      });
+      durations.push(performance.now() - started);
+      expect(response.status()).toBe(200);
+    }
+    durations.sort((a, b) => a - b);
+    const p95 = durations[Math.ceil(durations.length * 0.95) - 1];
+    console.log(`[perf] 이동 API p50 ${durations[9].toFixed(0)}ms, p95 ${p95.toFixed(0)}ms`);
+    expect(p95).toBeLessThan(150);
   });
 });

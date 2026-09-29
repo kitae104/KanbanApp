@@ -1,26 +1,32 @@
 import { DndContext } from "@dnd-kit/core";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Board } from "@/components/board/Board";
 import { BoardProvider, MESSAGES } from "@/components/board/BoardProvider";
 import { Column } from "@/components/board/Column";
-import { STORAGE_KEY } from "@/lib/storage/localStorageBoardRepository";
+import { createEmptyBoard } from "@/lib/board/operations";
+import type { BoardState } from "@/lib/board/types";
+import {
+  createMemoryBoardRepository,
+  type MemoryBoardRepository,
+} from "@/lib/storage/memoryBoardRepository";
 import { makeBoard } from "../board/helpers";
 
+let seeded: BoardState;
+let repo: MemoryBoardRepository;
+
+/** 서버에 이 보드가 저장되어 있는 상태로 시작한다. */
 function seed(layout: Parameters<typeof makeBoard>[0]) {
-  const board = makeBoard(layout);
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({ version: 1, savedAt: "2026-01-01T00:00:00.000Z", board }),
-  );
-  return board;
+  seeded = makeBoard(layout);
+  return seeded;
 }
 
 function renderBoard() {
   const user = userEvent.setup();
+  repo = createMemoryBoardRepository(seeded);
   render(
-    <BoardProvider>
+    <BoardProvider initialBoard={seeded} repository={repo} onUnauthorized={() => {}}>
       <Board />
     </BoardProvider>,
   );
@@ -29,7 +35,12 @@ function renderBoard() {
 
 const column = (status: string) => screen.getByTestId(`column-${status}`);
 const count = (status: string) => screen.getByTestId(`column-count-${status}`);
-const storedTodo = () => JSON.parse(localStorage.getItem(STORAGE_KEY)!).board.columns.TODO;
+/** 서버(메모리 저장소)에 확정된 할 일 컬럼. */
+const storedTodo = () => repo.board.columns.TODO;
+
+beforeEach(() => {
+  seeded = createEmptyBoard();
+});
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -82,10 +93,7 @@ describe("카드 표시 (T-017)", () => {
   it("설명의 줄바꿈을 유지한다", () => {
     const board = makeBoard({ TODO: ["a"] });
     board.cards.a.description = "첫째 줄\n둘째 줄";
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ version: 1, savedAt: "2026-01-01T00:00:00.000Z", board }),
-    );
+    seeded = board;
     renderBoard();
     const description = screen.getByText(/첫째 줄/);
     expect(description.textContent).toBe("첫째 줄\n둘째 줄");
@@ -115,7 +123,7 @@ describe("카드 생성·수정 (T-018)", () => {
       .map((h) => h.textContent);
     expect(titles).toEqual(["카드 a", "새 작업"]);
     expect(count("TODO")).toHaveTextContent("카드 2개");
-    expect(storedTodo()).toHaveLength(2);
+    await waitFor(() => expect(storedTodo()).toHaveLength(2));
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
@@ -131,7 +139,7 @@ describe("카드 생성·수정 (T-018)", () => {
     expect(screen.getByText("제목을 입력하세요.")).toBeInTheDocument();
     expect(screen.getByLabelText(/제목/)).toHaveAttribute("aria-invalid", "true");
     expect(count("TODO")).toHaveTextContent("카드 0개");
-    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+    expect(repo.calls).toEqual([]);
   });
 
   it("수정하면 기존 값이 채워져 있고 저장 후 반영된다 (FR-7)", async () => {
@@ -159,15 +167,14 @@ describe("카드 생성·수정 (T-018)", () => {
 
   it("저장에 실패하면 추가를 되돌리고 알린다 (FR-18)", async () => {
     const user = renderBoard();
-    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-      throw new DOMException("full", "QuotaExceededError");
-    });
+    repo.failNext("server");
     await user.click(screen.getByRole("button", { name: "+ 카드 추가" }));
     await user.type(screen.getByLabelText(/제목/), "저장 안 될 카드");
     await user.click(screen.getByRole("button", { name: "추가" }));
 
-    expect(screen.getByRole("alert")).toHaveTextContent(MESSAGES.saveFailed);
+    expect(await screen.findByRole("alert")).toHaveTextContent(MESSAGES.saveFailed);
     expect(screen.queryByText("저장 안 될 카드")).toBeNull();
+    expect(storedTodo()).toEqual([]);
   });
 });
 
@@ -190,6 +197,6 @@ describe("삭제 확인 (T-019)", () => {
     await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "삭제" }));
     expect(screen.queryByTestId("card-a")).toBeNull();
     expect(count("TODO")).toHaveTextContent("카드 1개");
-    expect(storedTodo()).toEqual(["b"]);
+    await waitFor(() => expect(storedTodo()).toEqual(["b"]));
   });
 });

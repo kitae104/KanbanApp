@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { buildStoredBoard } from "../fixtures/seedBoard";
 import { addCard, card, column, openWith, titlesIn } from "./helpers";
 
