@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+/*
+ * 색 토큰 (NFR-6). 텍스트/배경 조합의 WCAG 대비:
+ *   ink / canvas(#ffffff) 17.85 · ink / column 16.30
+ *   muted / surface 7.58 · muted / column 6.92
+ *   todo-ink / todo-soft 11.87 · progress-ink / progress-soft 8.49 · done-ink / done-soft 8.30
+ *   white / primary 5.17 · white / danger 6.47 · danger / surface 6.47
+ *   toast-ink / toast 13.98
+ * 모두 AA(4.5:1) 이상이다. accent 색은 텍스트가 아닌 장식(컬럼 상단 선)에만 쓴다.
+ */
+@theme {
+  --color-canvas: #f8fafc;
+  --color-surface: #ffffff;
+  --color-column: #f1f5f9;
+  --color-ink: #0f172a;
+  --color-muted: #475569;
+  --color-line: #cbd5e1;
+
+  --color-primary: #2563eb;
+  --color-primary-strong: #1d4ed8;
+  --color-danger: #b91c1c;
+  --color-danger-strong: #991b1b;
+
+  --color-todo-soft: #e2e8f0;
+  --color-todo-ink: #1e293b;
+  --color-todo-accent: #64748b;
+  --color-progress-soft: #dbeafe;
+  --color-progress-ink: #1e3a8a;
+  --color-progress-accent: #2563eb;
+  --color-done-soft: #dcfce7;
+  --color-done-ink: #14532d;
+  --color-done-accent: #16a34a;
+
+  --color-toast: #1e293b;
+  --color-toast-ink: #f8fafc;
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
