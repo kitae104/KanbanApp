@@ -5,7 +5,13 @@ import { redirect } from "next/navigation";
 import { AUTH_MESSAGES } from "@/lib/auth/messages";
 import { loginSchema, signupSchema, toFieldErrors, type FieldErrors } from "@/lib/auth/schema";
 import { hashPassword, verifyDummy, verifyPassword } from "@/server/auth/password";
-import { getClientIp, isLoginBlocked, recordLoginAttempt } from "@/server/auth/rateLimit";
+import {
+  getClientIp,
+  isLoginBlocked,
+  isSignupBlocked,
+  recordLoginAttempt,
+  recordSignupAttempt,
+} from "@/server/auth/rateLimit";
 import {
   clearSessionCookie,
   createSession,
@@ -38,6 +44,11 @@ export async function signup(_prev: AuthFormState, formData: FormData): Promise<
   };
   const parsed = signupSchema.safeParse(raw);
   if (!parsed.success) return { fieldErrors: toFieldErrors(parsed.error), email: raw.email };
+
+  // 막힌 동안에는 해시도, 시도 기록도 하지 않는다. 해시는 비싸서 제한이 먼저다.
+  const ip = getClientIp(await headers());
+  if (await isSignupBlocked(ip)) return { formError: AUTH_MESSAGES.tooManySignups, email: raw.email };
+  await recordSignupAttempt(ip);
 
   const userId = await createUserWithBoard(
     parsed.data.email,

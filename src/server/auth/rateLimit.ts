@@ -33,6 +33,33 @@ export async function recordLoginAttempt(
   );
 }
 
+// 같은 IP에서 1시간 동안 5번까지 가입을 시도할 수 있다. 가입은 argon2 해시를 계산하므로
+// 성공·실패와 상관없이 해시까지 가는 시도를 모두 센다.
+export const SIGNUP_WINDOW_MINUTES = 60;
+export const SIGNUP_MAX_ATTEMPTS = 5;
+
+/** E2E는 같은 IP에서 계정을 많이 만들므로, 테스트 서버만 SIGNUP_MAX_ATTEMPTS로 한도를 올린다. */
+function signupLimit(): number {
+  const configured = Number(process.env.SIGNUP_MAX_ATTEMPTS);
+  return Number.isInteger(configured) && configured > 0 ? configured : SIGNUP_MAX_ATTEMPTS;
+}
+
+export async function isSignupBlocked(ip: string, now = new Date()): Promise<boolean> {
+  const { rows } = await query<{ attempts: string }>(
+    `SELECT count(*) AS attempts
+       FROM signup_attempts
+      WHERE ip = $1
+        AND attempted_at > $2::timestamptz - make_interval(mins => $3)
+        AND attempted_at <= $2::timestamptz`,
+    [ip, now, SIGNUP_WINDOW_MINUTES],
+  );
+  return Number(rows[0].attempts) >= signupLimit();
+}
+
+export async function recordSignupAttempt(ip: string, now = new Date()): Promise<void> {
+  await query("INSERT INTO signup_attempts (ip, attempted_at) VALUES ($1, $2)", [ip, now]);
+}
+
 /** 프록시 뒤에서는 x-forwarded-for의 첫 값이 클라이언트 IP다. */
 export function getClientIp(headers: Headers): string {
   const forwarded = headers.get("x-forwarded-for")?.split(",")[0]?.trim();

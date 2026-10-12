@@ -11,6 +11,7 @@ import {
 } from "react";
 import type { BoardAction } from "@/lib/board/actions";
 import { boardReducer } from "@/lib/board/reducer";
+import { boardStateSchema } from "@/lib/board/schema";
 import type { BoardState } from "@/lib/board/types";
 import { apiBoardRepository } from "@/lib/storage/apiBoardRepository";
 import type { BoardRepository, RepoError, RepoResult } from "@/lib/storage/boardRepository";
@@ -150,10 +151,15 @@ export function BoardProvider({
           fail(result.error);
           return false;
         }
+        const moved = action.type === "MOVE_CARD" ? boardStateSchema.safeParse(result.value) : null;
+        if (moved && !moved.success) {
+          fail("server");
+          return false;
+        }
         pendingRef.current -= 1;
-        if (action.type === "MOVE_CARD") {
+        if (moved) {
           // 이동은 서버가 다시 계산한 보드가 기준이다.
-          confirmedRef.current = result.value as BoardState;
+          confirmedRef.current = moved.data;
           // 대기 중인 변경이 없고 드래그 중이 아닐 때만 화면을 서버 기준으로 맞춘다.
           if (pendingRef.current === 0 && !draggingRef.current) {
             apply({ type: "HYDRATE", board: confirmedRef.current });

@@ -34,7 +34,7 @@ export async function setupTestDatabase(): Promise<string> {
   const db = new pg.Client({ connectionString: url });
   await db.connect();
   try {
-    await db.query("TRUNCATE users, login_attempts RESTART IDENTITY CASCADE");
+    await db.query("TRUNCATE users, login_attempts, signup_attempts RESTART IDENTITY CASCADE");
   } finally {
     await db.end();
   }

@@ -34,14 +34,22 @@ export const cardSchema = z.object({
   updatedAt: z.iso.datetime(),
 });
 
-export const boardStateSchema = z.object({
-  cards: z.record(z.string(), cardSchema),
-  columns: z.object({
-    TODO: z.array(z.string()),
-    IN_PROGRESS: z.array(z.string()),
-    DONE: z.array(z.string()),
-  }),
-});
+export const boardStateSchema = z
+  .object({
+    cards: z.record(z.string(), cardSchema),
+    columns: z.record(statusSchema, z.array(z.string())),
+  })
+  .superRefine((board, ctx) => {
+    // columns가 카드 위치의 기준이므로, 모든 카드가 정확히 한 컬럼에 한 번씩 있어야 한다.
+    const ids = Object.values(board.columns).flat();
+    const consistent =
+      new Set(ids).size === ids.length &&
+      ids.length === Object.keys(board.cards).length &&
+      ids.every((id) => id in board.cards);
+    if (!consistent) {
+      ctx.addIssue({ code: "custom", message: "cards와 columns가 일치하지 않습니다." });
+    }
+  });
 
 export const STORAGE_VERSION = 1;
 

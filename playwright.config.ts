@@ -38,6 +38,8 @@ export default defineConfig({
       DATABASE_URL: testDatabaseUrl,
       // 로컬 http에서 돌리므로 Secure 쿠키를 끈다.
       SESSION_COOKIE_SECURE: "false",
+      // 테스트마다 같은 IP에서 새 계정을 만든다. 운영 한도(5회)는 DB 테스트가 검증한다.
+      SIGNUP_MAX_ATTEMPTS: "100000",
     },
   },
 });

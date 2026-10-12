@@ -58,6 +58,20 @@ describe("storedBoardSchema", () => {
     expect(storedBoardSchema.safeParse(bad).success).toBe(false);
   });
 
+  it("columns에 없는 카드 ID, 중복 ID, 컬럼에 빠진 카드는 거부한다", () => {
+    const ghost = structuredClone(valid);
+    ghost.board.columns.DONE.push("ghost");
+    expect(storedBoardSchema.safeParse(ghost).success).toBe(false);
+
+    const duplicated = structuredClone(valid);
+    duplicated.board.columns.DONE.push("a");
+    expect(storedBoardSchema.safeParse(duplicated).success).toBe(false);
+
+    const orphan = structuredClone(valid);
+    orphan.board.columns.TODO = [];
+    expect(storedBoardSchema.safeParse(orphan).success).toBe(false);
+  });
+
   it("컬럼이 빠지거나 버전이 다르면 거부한다", () => {
     const noColumn = structuredClone(valid) as unknown as {
       board: { columns: Record<string, unknown> };

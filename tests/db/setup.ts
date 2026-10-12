@@ -5,7 +5,7 @@ import { createPool, getPool, setPool } from "@/server/db/pool";
 setPool(createPool(inject("testDatabaseUrl")));
 
 beforeEach(async () => {
-  await getPool().query("TRUNCATE users, login_attempts RESTART IDENTITY CASCADE");
+  await getPool().query("TRUNCATE users, login_attempts, signup_attempts RESTART IDENTITY CASCADE");
 });
 
 afterAll(async () => {

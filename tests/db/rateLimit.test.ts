@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   LOGIN_MAX_FAILURES,
+  SIGNUP_MAX_ATTEMPTS,
   getClientIp,
   isLoginBlocked,
+  isSignupBlocked,
   recordLoginAttempt,
+  recordSignupAttempt,
 } from "@/server/auth/rateLimit";
 
 const NOW = new Date("2026-09-29T10:00:00Z");
@@ -47,6 +50,22 @@ describe("로그인 시도 제한", () => {
       await recordLoginAttempt("a@test.local", `10.0.0.${i}`, false, NOW);
     }
     expect(await isLoginBlocked("a@test.local", "9.9.9.9", NOW)).toBe(true);
+  });
+});
+
+describe("가입 시도 제한", () => {
+  it("5번까지는 허용하고, 6번째 시도를 막는다", async () => {
+    for (let i = 0; i < SIGNUP_MAX_ATTEMPTS - 1; i++) await recordSignupAttempt("1.1.1.1", NOW);
+    expect(await isSignupBlocked("1.1.1.1", NOW)).toBe(false);
+    await recordSignupAttempt("1.1.1.1", NOW);
+    expect(await isSignupBlocked("1.1.1.1", NOW)).toBe(true);
+  });
+
+  it("1시간이 지나면 풀리고, 다른 IP에는 영향이 없다", async () => {
+    for (let i = 0; i < SIGNUP_MAX_ATTEMPTS; i++) await recordSignupAttempt("1.1.1.1", NOW);
+    expect(await isSignupBlocked("1.1.1.1", minutesAfter(59))).toBe(true);
+    expect(await isSignupBlocked("1.1.1.1", minutesAfter(61))).toBe(false);
+    expect(await isSignupBlocked("2.2.2.2", NOW)).toBe(false);
   });
 });
 

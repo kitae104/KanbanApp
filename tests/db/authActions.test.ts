@@ -72,6 +72,18 @@ describe("signup", () => {
     expect(Number((await query<{ n: string }>("SELECT count(*) AS n FROM users")).rows[0].n)).toBe(1);
   });
 
+  it("같은 IP에서 5번 시도하면 6번째는 계정을 만들지 않고 막는다", async () => {
+    for (let i = 0; i < 5; i++) {
+      await expectRedirect(signup({}, signupForm(`user${i}@test.local`)), "/");
+    }
+    const state = await signup({}, signupForm("sixth@test.local"));
+    expect(state.formError).toBe(AUTH_MESSAGES.tooManySignups);
+    expect(Number((await query<{ n: string }>("SELECT count(*) AS n FROM users")).rows[0].n)).toBe(5);
+
+    requestHeaders = new Headers({ "x-forwarded-for": "10.0.0.2" });
+    await expectRedirect(signup({}, signupForm("other-ip@test.local")), "/");
+  });
+
   it("검증에 실패하면 필드 오류를 돌려주고 패스워드는 돌려주지 않는다", async () => {
     const state = await signup(
       {},
